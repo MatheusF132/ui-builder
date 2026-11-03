@@ -24,10 +24,15 @@ export function contrastRatio(fg?: string, bg?: string) {
 }
 
 /** Procura o primeiro fundo sólido subindo pela árvore a partir de `startId`. */
-export function effectiveBackground(elements: Elements, startId: string | null) {
+export function effectiveBackground(
+  elements: Elements,
+  startId: string | null,
+  resolve: (value?: string) => string | undefined = (v) => v,
+) {
   let el = startId ? elements[startId] : undefined;
   while (el) {
-    if (parseHex(el.background)) return el.background;
+    const bg = resolve(el.background);
+    if (parseHex(bg)) return bg;
     el = el.parentId ? elements[el.parentId] : undefined;
   }
   return '#FFFFFF';

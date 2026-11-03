@@ -3,11 +3,14 @@ import { Search } from 'lucide-react';
 import { CATEGORIES, LIBRARY, type LibItem } from '../editor/library';
 import { flatten } from '../editor/tree';
 import { useEditor } from '../editor/store';
+import { DEFAULT_THEME, getTheme } from '../editor/theme';
 import { ElementView } from './ElementView';
 
 /** Miniatura real do componente (renderizado com o mesmo ElementView do canvas). */
 export function Preview({ item, width = 112, height = 64 }: { item: LibItem; width?: number; height?: number }) {
   const { id, elements } = useMemo(() => flatten(item.build(), null), [item]);
+  const project = useEditor((s) => s.project);
+  const theme = project ? getTheme(project) : DEFAULT_THEME;
   const root = elements[id];
   const scale = Math.min(1, width / root.width, height / root.height);
   return (
@@ -18,7 +21,7 @@ export function Preview({ item, width = 112, height = 64 }: { item: LibItem; wid
           transform: `translate(-50%,-50%) scale(${scale})`,
         }}
       >
-        <ElementView id={id} elements={elements} />
+        <ElementView id={id} elements={elements} theme={theme} />
       </div>
     </div>
   );

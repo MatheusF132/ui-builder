@@ -1,11 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ElementView } from '../components/ElementView';
 import type { Project } from './types';
+import { FONT_STACKS, getTheme } from './theme';
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 export function exportHTML(project: Project) {
-  const markup = renderToStaticMarkup(<ElementView id={project.rootId} elements={project.elements} />);
+  const theme = getTheme(project);
+  const markup = renderToStaticMarkup(<ElementView id={project.rootId} elements={project.elements} theme={theme} projectRootId={project.rootId} />);
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -14,7 +16,7 @@ export function exportHTML(project: Project) {
 <title>${escapeHtml(project.name)}</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;display:flex;justify-content:center;background:#E7EAF0;font-family:system-ui,sans-serif}
+body{margin:0;display:flex;justify-content:center;background:#E7EAF0;font-family:${FONT_STACKS[theme.font]}}
 @keyframes ub-spin{to{transform:rotate(360deg)}}
 </style>
 </head>

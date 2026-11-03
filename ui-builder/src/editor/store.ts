@@ -1,17 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { EditorElement, Project, Target } from './types';
+import type { EditorElement, Project, Target, Theme } from './types';
+import { DEFAULT_THEME, getTheme } from './theme';
 import { cloneSubtree, collectIds, flatten, type Elements, type NodeSpec } from './tree';
 
 const HISTORY_LIMIT = 100;
+
+/** Cada passo do histórico guarda os elementos e o tema. */
+interface Snapshot { elements: Elements; theme: Theme }
 
 interface EditorState {
   project: Project | null;
   selectedId: string | null;
   zoom: number;
   fitTick: number;
-  past: Elements[];
-  future: Elements[];
+  past: Snapshot[];
+  future: Snapshot[];
   lastKey: string;
   lastTime: number;
   createProject: (name: string, target: Target, width: number, height: number) => void;
@@ -22,6 +26,7 @@ interface EditorState {
   setZoom: (zoom: number) => void;
   requestFit: () => void;
   pushHistory: () => void;
+  setTheme: (patch: Partial<Theme>) => void;
   update: (id: string, patch: Partial<EditorElement>, record?: boolean) => void;
   addSpec: (spec: NodeSpec, parentId?: string, at?: { x: number; y: number }) => void;
   remove: (id: string) => void;
@@ -50,13 +55,13 @@ export const useEditor = create<EditorState>()(
             name: target === 'web' ? 'Página' : 'Tela',
             width,
             height,
-            background: '#FFFFFF',
+            background: '$surface',
             radius: target === 'mobile' ? 36 : 0,
             shadow: 'lg',
           },
           null,
         );
-        set({ project: { name, target, rootId: id, elements }, selectedId: null, past: [], future: [] });
+        set({ project: { name, target, rootId: id, elements, theme: DEFAULT_THEME }, selectedId: null, past: [], future: [] });
         get().requestFit();
       },
 
@@ -79,7 +84,18 @@ export const useEditor = create<EditorState>()(
       pushHistory: () => {
         const p = get().project;
         if (!p) return;
-        set((s) => ({ past: [...s.past.slice(-(HISTORY_LIMIT - 1)), p.elements], future: [], lastKey: '' }));
+        set((s) => ({ past: [...s.past.slice(-(HISTORY_LIMIT - 1)), { elements: p.elements, theme: getTheme(p) }], future: [], lastKey: '' }));
+      },
+
+      setTheme: (patch) => {
+        const p = get().project;
+        if (!p) return;
+        // Ajustes seguidos (ex.: arrastar o seletor de cor) viram um único passo do "desfazer".
+        const key = 'theme:' + Object.keys(patch).join();
+        const now = Date.now();
+        if (get().lastKey !== key || now - get().lastTime > 800) get().pushHistory();
+        set({ lastKey: key, lastTime: now });
+        set({ project: { ...p, theme: { ...getTheme(p), ...patch } } });
       },
 
       update: (id, patch, record = true) => {
@@ -170,9 +186,9 @@ export const useEditor = create<EditorState>()(
         const prev = past[past.length - 1];
         set((s) => ({
           past: s.past.slice(0, -1),
-          future: [project.elements, ...s.future],
-          project: { ...project, elements: prev },
-          selectedId: selectedId && prev[selectedId] ? selectedId : null,
+          future: [{ elements: project.elements, theme: getTheme(project) }, ...s.future],
+          project: { ...project, elements: prev.elements, theme: prev.theme },
+          selectedId: selectedId && prev.elements[selectedId] ? selectedId : null,
           lastKey: '',
         }));
       },
@@ -183,9 +199,9 @@ export const useEditor = create<EditorState>()(
         const next = future[0];
         set((s) => ({
           future: s.future.slice(1),
-          past: [...s.past, project.elements],
-          project: { ...project, elements: next },
-          selectedId: selectedId && next[selectedId] ? selectedId : null,
+          past: [...s.past, { elements: project.elements, theme: getTheme(project) }],
+          project: { ...project, elements: next.elements, theme: next.theme },
+          selectedId: selectedId && next.elements[selectedId] ? selectedId : null,
           lastKey: '',
         }));
       },

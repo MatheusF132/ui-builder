@@ -16,7 +16,7 @@ export function useShortcuts() {
       if (mod && key === 'y') { e.preventDefault(); s.redo(); return; }
       if (mod && key === 'd' && sel) { e.preventDefault(); s.duplicate(sel.id); return; }
       if (e.key === 'Escape') { s.select(null); return; }
-      if (!sel || sel.id === s.project.rootId) return;
+      if (!sel || sel.parentId === null) return;
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.remove(sel.id); return; }
 
       const step = e.shiftKey ? 10 : 1;

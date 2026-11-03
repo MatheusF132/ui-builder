@@ -44,6 +44,8 @@ export interface Project {
   elements: Record<string, EditorElement>;
   /** Projetos da v0.1 não têm tema; use getTheme(). */
   theme?: Theme;
+  /** Telas do projeto, em ordem (cada uma é um elemento raiz). Use getScreens(). */
+  screens?: string[];
 }
 
 export type ThemeColor =

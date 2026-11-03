@@ -1,6 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Copy, Trash2, TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEditor } from '../editor/store';
+import { getScreens } from '../editor/screens';
+import { useUi, type UiMode } from '../editor/ui';
 import { parseHex } from '../editor/contrast';
 import { auditProject, checksFor } from '../editor/audit';
 import {
@@ -157,6 +159,27 @@ function ThemePanel() {
   );
 }
 
+const MODES: [UiMode, string][] = [['light', 'Claro'], ['dark', 'Escuro'], ['auto', 'Automático']];
+
+function EditorAppearance() {
+  const mode = useUi((s) => s.mode);
+  const follow = useUi((s) => s.followProject);
+  const { setMode, setFollowProject } = useUi.getState();
+  return (
+    <Section title="Aparência do editor">
+      <div className="seg" role="group" aria-label="Tema do editor">
+        {MODES.map(([value, label]) => (
+          <button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{label}</button>
+        ))}
+      </div>
+      <label className="check">
+        <input type="checkbox" checked={follow} onChange={(e) => setFollowProject(e.target.checked)} />
+        Destaque do editor acompanha o tema do projeto
+      </label>
+    </Section>
+  );
+}
+
 export function Inspector() {
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
@@ -164,7 +187,6 @@ export function Inspector() {
   const el = selectedId ? project.elements[selectedId] : null;
 
   if (!el) {
-    const root = project.elements[project.rootId];
     return (
       <aside className="inspector" aria-label="Propriedades">
         <Section title="Projeto">
@@ -172,10 +194,11 @@ export function Inspector() {
             <span>Nome</span>
             <input type="text" value={project.name} onChange={(e) => setProjectName(e.target.value)} />
           </label>
-          <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {root.width} × {root.height}</p>
+          <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {getScreens(project).length} {getScreens(project).length === 1 ? 'tela' : 'telas'}</p>
         </Section>
         <ReviewPanel />
         <ThemePanel />
+        <EditorAppearance />
         <p className="hint pad">Selecione um elemento no canvas ou nas camadas para editar suas propriedades.</p>
       </aside>
     );
@@ -192,6 +215,17 @@ export function Inspector() {
     <aside className="inspector" aria-label="Propriedades">
       <div className="insp-head">
         <input className="name-input" aria-label="Nome da camada" value={el.name} onChange={(e) => set({ name: e.target.value })} />
+        {isRoot && (
+          <div className="insp-actions">
+            <button className="icon-btn" aria-label="Duplicar tela" title="Duplicar tela (Ctrl+D)" onClick={() => duplicate(el.id)}><Copy size={16} /></button>
+            {getScreens(project).length > 1 && (
+              <button
+                className="icon-btn danger" aria-label="Excluir tela" title="Excluir tela"
+                onClick={() => { if (!el.children.length || confirm('Excluir esta tela e tudo que está nela?')) remove(el.id); }}
+              ><Trash2 size={16} /></button>
+            )}
+          </div>
+        )}
         {!isRoot && (
           <div className="insp-actions">
             <button className="icon-btn" aria-label="Trazer para frente" title="Trazer para frente" onClick={() => reorder(el.id, 1)}><ArrowUp size={16} /></button>
@@ -204,8 +238,8 @@ export function Inspector() {
 
       <Section title="Posição e tamanho">
         <div className="grid2">
-          {!isRoot && <Num label="X" value={el.x} onChange={(x) => set({ x })} />}
-          {!isRoot && <Num label="Y" value={el.y} onChange={(y) => set({ y })} />}
+          <Num label="X" value={el.x} onChange={(x) => set({ x })} />
+          <Num label="Y" value={el.y} onChange={(y) => set({ y })} />
           <Num label="Largura" value={el.width} min={1} onChange={(width) => set({ width })} />
           <Num label="Altura" value={el.height} min={1} onChange={(height) => set({ height })} />
         </div>

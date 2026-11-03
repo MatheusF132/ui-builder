@@ -20,7 +20,7 @@ export const ROUNDNESS: Record<Theme['roundness'], number> = { none: 0, soft: 1,
 export const ROUNDNESS_LABELS: Record<Theme['roundness'], string> = { none: 'Reto', soft: 'Suave', round: 'Arredondado' };
 
 const toHex = (rgb: number[]) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase();
-function mix(a: string, b: string, t: number) {
+export function mix(a: string, b: string, t: number) {
   const x = parseHex(a) ?? [0, 0, 0];
   const y = parseHex(b) ?? [0, 0, 0];
   return toHex(x.map((v, i) => v + (y[i] - v) * t));
@@ -62,4 +62,14 @@ export const isToken = (value?: string): value is `$${ThemeColor}` => !!value &&
 export function resolveColor(value: string | undefined, theme: Theme): string | undefined {
   if (!isToken(value)) return value;
   return theme.colors[value.slice(1) as ThemeColor] ?? undefined;
+}
+
+/** Cor de destaque da interface do editor derivada do tema do projeto, com contraste garantido no claro e no escuro. */
+export function accentFor(primary: string, dark: boolean) {
+  const bg = dark ? '#1A1E26' : '#F8F9FB';
+  let accent = primary;
+  for (let i = 1; i <= 10 && (contrastRatio(accent, bg) ?? 0) < 3.2; i++) accent = mix(primary, dark ? '#FFFFFF' : '#000000', i * 0.1);
+  const ink = (contrastRatio('#FFFFFF', accent) ?? 0) >= 4.5 ? '#FFFFFF' : '#10131A';
+  const soft = mix(accent, dark ? '#1A1E26' : '#FFFFFF', dark ? 0.8 : 0.88);
+  return { accent, ink, soft };
 }

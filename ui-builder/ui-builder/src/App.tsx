@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useEditor } from './editor/store';
 import { useShortcuts } from './editor/useShortcuts';
+import { useAppearance } from './editor/ui';
 import { Canvas } from './components/Canvas';
 import { Inspector } from './components/Inspector';
 import { LeftPanel } from './components/LeftPanel';
@@ -12,6 +13,7 @@ export default function App() {
   const hasProject = useEditor((s) => !!s.project);
   const [help, setHelp] = useState(false);
   useShortcuts();
+  useAppearance();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -3,6 +3,8 @@ import {
   SlidersHorizontal, Square, Tag, TextCursorInput, ToggleLeft, SquareCheck, Type, User,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
+import { Plus } from 'lucide-react';
+import { getScreens } from '../editor/screens';
 import { useEditor } from '../editor/store';
 import type { ElementType } from '../editor/types';
 
@@ -56,10 +58,16 @@ function Row({ id, depth }: { id: string; depth: number }) {
 }
 
 export function Layers() {
-  const rootId = useEditor((s) => s.project!.rootId);
+  const project = useEditor((s) => s.project)!;
+  const addScreen = useEditor((s) => s.addScreen);
   return (
     <div className="layers">
-      <Row id={rootId} depth={0} />
+      <div className="layers-head">
+        <button className="btn" onClick={addScreen}><Plus size={14} /> Nova tela</button>
+      </div>
+      {getScreens(project).map((id) => (
+        <Row key={id} id={id} depth={0} />
+      ))}
     </div>
   );
 }

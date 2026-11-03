@@ -6,6 +6,8 @@ Ao criar o projeto você escolhe a plataforma (Web ou Celular) e o tamanho da te
 
 ## O que já funciona
 
+- **Várias telas** no mesmo projeto: adicione, duplique, exclua e arraste as telas no canvas (com guias de alinhamento entre elas)
+- **Tema do editor**: claro, escuro ou automático, com a cor de destaque acompanhando o tema do projeto
 - **Novo projeto** com escolha de plataforma e tamanhos prontos (Desktop, Notebook, Tablet, iPhone, Android)
 - **Biblioteca com 36 componentes** em 7 categorias: básicos, botões, formulários, feedback, navegação, cards e modelos completos (login, seção de abertura, perfil), com miniaturas reais e busca
 - **Canvas** com arrastar, redimensionar por 8 alças, zoom (botões ou Ctrl + roda do mouse), ajuste à tela e mover a tela com Espaço + arrastar
@@ -63,7 +65,8 @@ React, TypeScript, Vite, Zustand e Lucide Icons.
 
 O objetivo é ser também uma ferramenta de UX, não só de desenho de telas:
 
-- [ ] Várias telas no mesmo projeto, com conexões entre elas (fluxo de navegação)
+- [x] Várias telas no mesmo projeto
+- [ ] Conexões entre as telas (fluxo de navegação)
 - [ ] Modo protótipo: clicar nos elementos e navegar entre as telas
 - [ ] Mapa de jornada do usuário e personas
 - [ ] Constraints: o conteúdo de um frame acompanha o redimensionamento

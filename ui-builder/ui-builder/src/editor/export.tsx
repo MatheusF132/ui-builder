@@ -2,12 +2,20 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ElementView } from '../components/ElementView';
 import type { Project } from './types';
 import { FONT_STACKS, getTheme } from './theme';
+import { getScreens } from './screens';
 
 const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 export function exportHTML(project: Project) {
   const theme = getTheme(project);
-  const markup = renderToStaticMarkup(<ElementView id={project.rootId} elements={project.elements} theme={theme} projectRootId={project.rootId} />);
+  const screens = getScreens(project);
+  const sections = screens
+    .map((id) => {
+      const markup = renderToStaticMarkup(<ElementView id={id} elements={project.elements} theme={theme} screens={screens} />);
+      const title = screens.length > 1 ? `<h2>${escapeHtml(project.elements[id].name)}</h2>` : '';
+      return `<section>${title}${markup}</section>`;
+    })
+    .join('\n');
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -16,12 +24,14 @@ export function exportHTML(project: Project) {
 <title>${escapeHtml(project.name)}</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;display:flex;justify-content:center;background:#E7EAF0;font-family:${FONT_STACKS[theme.font]}}
+body{margin:0;padding:24px;display:flex;flex-direction:column;align-items:center;gap:56px;background:#E7EAF0;font-family:${FONT_STACKS[theme.font]}}
+section{display:flex;flex-direction:column;gap:12px}
+h2{margin:0;font-size:14px;color:#5A6475}
 @keyframes ub-spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-${markup}
+${sections}
 </body>
 </html>`;
 }

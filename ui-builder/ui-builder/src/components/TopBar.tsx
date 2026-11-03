@@ -1,6 +1,7 @@
 import { useRef } from 'react';
-import { FileCode2, FileJson, FolderOpen, Keyboard, Maximize, Palette, Plus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { FileCode2, FileJson, FolderOpen, Keyboard, Maximize, Monitor, Moon, Palette, Plus, Sun, SquarePlus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEditor } from '../editor/store';
+import { useUi, type UiMode } from '../editor/ui';
 import { download, exportHTML, exportJSON, readProjectFile } from '../editor/export';
 
 export function TopBar({ onHelp }: { onHelp: () => void }) {
@@ -8,7 +9,11 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
   const zoom = useEditor((s) => s.zoom);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
-  const { undo, redo, setZoom, requestFit, closeProject, loadProject, select } = useEditor.getState();
+  const { undo, redo, setZoom, requestFit, closeProject, loadProject, select, addScreen } = useEditor.getState();
+  const mode = useUi((s) => s.mode);
+  const NEXT: Record<UiMode, UiMode> = { light: 'dark', dark: 'auto', auto: 'light' };
+  const ModeIcon = mode === 'light' ? Sun : mode === 'dark' ? Moon : Monitor;
+  const MODE_LABEL: Record<UiMode, string> = { light: 'claro', dark: 'escuro', auto: 'automático' };
   const fileInput = useRef<HTMLInputElement>(null);
   const fileName = project.name.trim().replace(/\s+/g, '-').toLowerCase() || 'projeto';
 
@@ -38,12 +43,17 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
         <button className="icon-btn" aria-label="Ajustar à tela" title="Ajustar à tela" onClick={requestFit}><Maximize size={17} /></button>
       </div>
       <div className="group">
+        <button className="btn" title="Adicionar uma tela ao projeto" onClick={addScreen}><SquarePlus size={16} /> Tela</button>
         <button className="btn" title="Editar o tema do projeto" onClick={() => select(null)}><Palette size={16} /> Tema</button>
         <button className="btn" onClick={() => download(`${fileName}.html`, exportHTML(project), 'text/html')}><FileCode2 size={16} /> HTML</button>
         <button className="btn" onClick={() => download(`${fileName}.json`, exportJSON(project), 'application/json')}><FileJson size={16} /> JSON</button>
         <button className="btn" onClick={() => fileInput.current?.click()}><FolderOpen size={16} /> Abrir</button>
         <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
+      <button
+        className="icon-btn" aria-label={`Tema do editor: ${MODE_LABEL[mode]}. Clique para alternar`} title={`Tema do editor: ${MODE_LABEL[mode]}`}
+        onClick={() => useUi.getState().setMode(NEXT[mode])}
+      ><ModeIcon size={18} /></button>
       <button className="icon-btn" aria-label="Atalhos de teclado" title="Atalhos de teclado (?)" onClick={onHelp}><Keyboard size={18} /></button>
       <button
         className="btn primary"

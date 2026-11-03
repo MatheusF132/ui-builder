@@ -19,9 +19,9 @@ export function flatten(spec: NodeSpec, parentId: string | null, out: Elements =
   return { id, elements: out };
 }
 
-export function cloneSubtree(elements: Elements, id: string, parentId: string, offset: number) {
+export function cloneSubtree(elements: Elements, id: string, parentId: string | null, offset: number) {
   const added: Elements = {};
-  const walk = (srcId: string, pid: string, top: boolean): string => {
+  const walk = (srcId: string, pid: string | null, top: boolean): string => {
     const src = elements[srcId];
     const newId = crypto.randomUUID();
     const children = src.children.map((c) => walk(c, newId, false));
@@ -46,10 +46,10 @@ export function absolutePos(elements: Elements, id: string) {
   let x = 0;
   let y = 0;
   let el: EditorElement | undefined = elements[id];
-  while (el && el.parentId) {
+  while (el) {
     x += el.x;
     y += el.y;
-    el = elements[el.parentId];
+    el = el.parentId ? elements[el.parentId] : undefined;
   }
   return { x, y };
 }
