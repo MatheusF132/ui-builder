@@ -1,14 +1,14 @@
 import { useRef } from 'react';
-import { FileCode2, FileJson, FolderOpen, Maximize, Plus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { FileCode2, FileJson, FolderOpen, Keyboard, Maximize, Palette, Plus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEditor } from '../editor/store';
 import { download, exportHTML, exportJSON, readProjectFile } from '../editor/export';
 
-export function TopBar() {
+export function TopBar({ onHelp }: { onHelp: () => void }) {
   const project = useEditor((s) => s.project)!;
   const zoom = useEditor((s) => s.zoom);
   const canUndo = useEditor((s) => s.past.length > 0);
   const canRedo = useEditor((s) => s.future.length > 0);
-  const { undo, redo, setZoom, requestFit, closeProject, loadProject } = useEditor.getState();
+  const { undo, redo, setZoom, requestFit, closeProject, loadProject, select } = useEditor.getState();
   const fileInput = useRef<HTMLInputElement>(null);
   const fileName = project.name.trim().replace(/\s+/g, '-').toLowerCase() || 'projeto';
 
@@ -38,11 +38,13 @@ export function TopBar() {
         <button className="icon-btn" aria-label="Ajustar à tela" title="Ajustar à tela" onClick={requestFit}><Maximize size={17} /></button>
       </div>
       <div className="group">
+        <button className="btn" title="Editar o tema do projeto" onClick={() => select(null)}><Palette size={16} /> Tema</button>
         <button className="btn" onClick={() => download(`${fileName}.html`, exportHTML(project), 'text/html')}><FileCode2 size={16} /> HTML</button>
         <button className="btn" onClick={() => download(`${fileName}.json`, exportJSON(project), 'application/json')}><FileJson size={16} /> JSON</button>
         <button className="btn" onClick={() => fileInput.current?.click()}><FolderOpen size={16} /> Abrir</button>
         <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
+      <button className="icon-btn" aria-label="Atalhos de teclado" title="Atalhos de teclado (?)" onClick={onHelp}><Keyboard size={18} /></button>
       <button
         className="btn primary"
         onClick={() => {

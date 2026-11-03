@@ -26,6 +26,8 @@ export interface EditorElement {
   fontSize?: number;
   fontWeight?: number;
   textAlign?: 'left' | 'center' | 'right';
+  /** Texto: a altura acompanha o conteúdo (útil para parágrafos e títulos). */
+  autoHeight?: boolean;
   opacity?: number;
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   value?: number;
@@ -40,4 +42,16 @@ export interface Project {
   target: Target;
   rootId: string;
   elements: Record<string, EditorElement>;
+  /** Projetos da v0.1 não têm tema; use getTheme(). */
+  theme?: Theme;
+}
+
+export type ThemeColor =
+  | 'primary' | 'onPrimary' | 'soft' | 'onSoft' | 'ink' | 'muted'
+  | 'line' | 'surface' | 'alt' | 'danger' | 'success';
+
+export interface Theme {
+  colors: Record<ThemeColor, string>;
+  font: 'manrope' | 'system' | 'serif' | 'mono';
+  roundness: 'none' | 'soft' | 'round';
 }

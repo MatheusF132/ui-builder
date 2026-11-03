@@ -1,8 +1,12 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Copy, Trash2, TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEditor } from '../editor/store';
-import { contrastRatio, effectiveBackground, parseHex } from '../editor/contrast';
-import type { EditorElement, ElementState } from '../editor/types';
+import { parseHex } from '../editor/contrast';
+import { auditProject, checksFor } from '../editor/audit';
+import {
+  FONT_LABELS, PRESET_THEMES, ROUNDNESS_LABELS, TOKEN_LABELS, deriveFromPrimary, getTheme, isToken, resolveColor,
+} from '../editor/theme';
+import type { EditorElement, ElementState, Theme, ThemeColor } from '../editor/types';
 
 const TEXTY = ['text', 'button', 'input', 'textarea', 'badge', 'avatar', 'checkbox'];
 const STATES: [ElementState, string][] = [
@@ -30,39 +34,125 @@ function Num({ label, value, onChange, min, max }: { label: string; value: numbe
   );
 }
 
+const hex7 = (v?: string) => {
+  const rgb = parseHex(v);
+  return rgb ? '#' + rgb.map((n) => n.toString(16).padStart(2, '0')).join('') : '#000000';
+};
+
 function ColorField({ label, value, onChange }: { label: string; value?: string; onChange: (v: string) => void }) {
+  const theme = getTheme(useEditor((s) => s.project)!);
+  const token = isToken(value);
   return (
-    <label className="field color">
+    <div className="field color">
       <span>{label}</span>
+      <input type="color" aria-label={label} value={hex7(resolveColor(value, theme))} onChange={(e) => onChange(e.target.value.toUpperCase())} />
       <input
-        type="color" aria-label={label} value={parseHex(value) ? value!.padEnd(7, '0').slice(0, 7) : '#000000'}
-        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        type="text" aria-label={`${label} (código)`} readOnly={token} placeholder="transparente"
+        value={token ? `Tema · ${TOKEN_LABELS[value.slice(1) as ThemeColor]}` : value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
       />
-      <input type="text" aria-label={`${label} (código)`} value={value ?? ''} placeholder="transparente" onChange={(e) => onChange(e.target.value)} />
-    </label>
+      <div className="tokens" role="group" aria-label="Cores do tema">
+        {(Object.keys(theme.colors) as ThemeColor[]).map((k) => (
+          <button
+            key={k} className="swatch" style={{ background: theme.colors[k] }} title={TOKEN_LABELS[k]}
+            aria-label={`Usar a cor do tema: ${TOKEN_LABELS[k]}`} aria-pressed={value === `$${k}`} onClick={() => onChange(`$${k}`)}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
-function Contrast({ el }: { el: EditorElement }) {
-  const elements = useEditor((s) => s.project!.elements);
-  if (!TEXTY.includes(el.type) || el.type === 'avatar' && !el.text) return null;
-  const hasOwnBg = ['button', 'input', 'textarea', 'badge', 'avatar'].includes(el.type) && parseHex(el.background);
-  const bg = hasOwnBg ? el.background : effectiveBackground(elements, el.parentId);
-  const fg = el.type === 'input' || el.type === 'textarea' ? (el.text ? el.color : '#6B7587') : el.color;
-  const ratio = contrastRatio(fg, bg);
-  if (ratio === null) return null;
-  const large = (el.fontSize ?? 16) >= 24 || ((el.fontSize ?? 16) >= 18.66 && (el.fontWeight ?? 400) >= 700);
-  const min = large ? 3 : 4.5;
-  const ok = ratio >= min;
+function UxChecks({ el }: { el: EditorElement }) {
+  const project = useEditor((s) => s.project)!;
+  const checks = checksFor(project, el);
+  if (!checks.length) return null;
   return (
-    <Section title="Acessibilidade">
-      <p className={`contrast ${ok ? 'ok' : 'warn'}`} role="status">
-        {ok ? <CircleCheck size={16} /> : <TriangleAlert size={16} />}
-        <span>
-          Contraste {ratio.toFixed(1)}:1.{' '}
-          {ok ? 'Atende ao mínimo recomendado (WCAG AA).' : `Abaixo do mínimo de ${min}:1. Escureça o texto ou clareie o fundo.`}
-        </span>
-      </p>
+    <Section title="Checagens de UX">
+      {checks.map((c) => (
+        <p key={c.kind} className={`contrast ${c.ok ? 'ok' : 'warn'}`} role="status">
+          {c.ok ? <CircleCheck size={16} /> : <TriangleAlert size={16} />}
+          <span>{c.message}</span>
+        </p>
+      ))}
+    </Section>
+  );
+}
+
+function ReviewPanel() {
+  const project = useEditor((s) => s.project)!;
+  const issues = useMemo(() => auditProject(project), [project]);
+  const { select } = useEditor.getState();
+  return (
+    <Section title="Revisão de UX">
+      {issues.length === 0 ? (
+        <p className="contrast ok" role="status">
+          <CircleCheck size={16} />
+          <span>Nenhum problema de contraste, alvo de toque ou tamanho de texto.</span>
+        </p>
+      ) : (
+        <>
+          <p className="hint">{issues.length} {issues.length === 1 ? 'problema encontrado' : 'problemas encontrados'}. Clique para ir até o elemento.</p>
+          <ul className="issues">
+            {issues.slice(0, 30).map((i) => (
+              <li key={i.elementId + i.message}>
+                <button onClick={() => select(i.elementId)}>
+                  <strong>{i.name}</strong>
+                  <span>{i.message}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Section>
+  );
+}
+
+function ThemePanel() {
+  const theme = getTheme(useEditor((s) => s.project)!);
+  const { setTheme } = useEditor.getState();
+  const setColor = (k: ThemeColor, v: string) => setTheme({ colors: { ...theme.colors, [k]: v.toUpperCase() } });
+
+  return (
+    <Section title="Tema">
+      <p className="hint">Os componentes que usam as cores do tema mudam todos juntos.</p>
+      <div className="presets">
+        {PRESET_THEMES.map((p) => (
+          <button key={p.name} className="preset" aria-label={`Aplicar o tema ${p.name}`} onClick={() => setTheme({ colors: p.colors })}>
+            <i style={{ background: p.colors.primary }} /><i style={{ background: p.colors.soft }} /><i style={{ background: p.colors.ink }} />
+            <span>{p.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className="field color">
+        <span>Gerar paleta a partir de uma cor</span>
+        <input
+          type="color" aria-label="Cor principal do tema" value={hex7(theme.colors.primary)}
+          onChange={(e) => setTheme({ colors: { ...theme.colors, ...deriveFromPrimary(e.target.value) } })}
+        />
+        <input type="text" aria-label="Cor principal (código)" readOnly value={theme.colors.primary} />
+      </div>
+      <label className="field">
+        <span>Fonte</span>
+        <select value={theme.font} onChange={(e) => setTheme({ font: e.target.value as Theme['font'] })}>
+          {Object.entries(FONT_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </label>
+      <div className="seg" role="group" aria-label="Arredondamento">
+        {(Object.keys(ROUNDNESS_LABELS) as Theme['roundness'][]).map((k) => (
+          <button key={k} aria-pressed={theme.roundness === k} onClick={() => setTheme({ roundness: k })}>{ROUNDNESS_LABELS[k]}</button>
+        ))}
+      </div>
+      <details className="all-colors">
+        <summary>Ajustar cada cor</summary>
+        {(Object.keys(theme.colors) as ThemeColor[]).map((k) => (
+          <label key={k} className="color-row">
+            <input type="color" value={hex7(theme.colors[k])} onChange={(e) => setColor(k, e.target.value)} />
+            <span>{TOKEN_LABELS[k]}</span>
+          </label>
+        ))}
+      </details>
     </Section>
   );
 }
@@ -84,6 +174,8 @@ export function Inspector() {
           </label>
           <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {root.width} × {root.height}</p>
         </Section>
+        <ReviewPanel />
+        <ThemePanel />
         <p className="hint pad">Selecione um elemento no canvas ou nas camadas para editar suas propriedades.</p>
       </aside>
     );
@@ -151,6 +243,12 @@ export function Inspector() {
             </label>
           </div>
           {el.type === 'text' && (
+            <label className="check">
+              <input type="checkbox" checked={!!el.autoHeight} onChange={(e) => set({ autoHeight: e.target.checked })} />
+              Altura automática
+            </label>
+          )}
+          {el.type === 'text' && (
             <div className="seg" role="group" aria-label="Alinhamento">
               {(['left', 'center', 'right'] as const).map((a) => (
                 <button key={a} aria-pressed={(el.textAlign ?? 'left') === a} onClick={() => set({ textAlign: a })}>
@@ -200,7 +298,7 @@ export function Inspector() {
         </label>
       </Section>
 
-      <Contrast el={el} />
+      <UxChecks el={el} />
     </aside>
   );
 }
