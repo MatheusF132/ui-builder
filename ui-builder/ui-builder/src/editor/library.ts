@@ -48,8 +48,8 @@ const alert = (msg: string, bg: string, border: string, fg: string, name: string
 
 export const LIBRARY: LibItem[] = [
   item('Básicos', 'Frame', () => frame({ width: 240, height: 160, background: '$alt', radius: 12 })),
-  item('Básicos', 'Título', () => text('Título da seção', { name: 'Título', fontSize: 28, fontWeight: 700, width: 320, height: 40 })),
-  item('Básicos', 'Parágrafo', () => text('Escreva aqui um texto de apoio para explicar a seção.', { name: 'Parágrafo', color: MUTED, width: 320, height: 48 })),
+  item('Básicos', 'Título', () => text('Título da seção', { name: 'Título', fontSize: 28, fontWeight: 700, width: 320, height: 38, autoHeight: true })),
+  item('Básicos', 'Parágrafo', () => text('Escreva aqui um texto de apoio para explicar a seção.', { name: 'Parágrafo', color: MUTED, width: 320, height: 48, autoHeight: true })),
   item('Básicos', 'Imagem', () => image()),
   item('Básicos', 'Divisor', () => ({ type: 'divider', name: 'Divisor', width: 240, height: 1, background: LINE })),
   item('Básicos', 'Avatar', () => avatar('AB', { radius: 24 })),
@@ -130,8 +130,8 @@ export const LIBRARY: LibItem[] = [
     button('Esqueci minha senha', { x: 32, y: 360, width: 296, background: 'transparent', color: ACCENT }),
   ])),
   item('Modelos', 'Seção de abertura (web)', () => frame({ name: 'Seção de abertura', width: 960, height: 420, background: '$alt' }, [
-    text('Projete telas que as pessoas entendem à primeira vista.', { x: 64, y: 90, width: 520, height: 120, fontSize: 44, fontWeight: 800 }),
-    text('Monte páginas e aplicativos com componentes prontos e exporte o resultado.', { x: 64, y: 226, width: 460, height: 56, fontSize: 18, color: MUTED }),
+    text('Interfaces claras, projetadas em minutos.', { x: 64, y: 90, width: 560, height: 108, fontSize: 40, fontWeight: 800, autoHeight: true }),
+    text('Monte páginas e aplicativos com componentes prontos e exporte o resultado.', { x: 64, y: 226, width: 460, height: 56, fontSize: 18, color: MUTED, autoHeight: true }),
     button('Começar agora', { x: 64, y: 306, width: 168, height: 48 }),
     button('Ver exemplos', { x: 248, y: 306, width: 150, height: 48, background: 'transparent', color: ACCENT, borderWidth: 2, borderColor: ACCENT }),
     image({ x: 600, y: 80, width: 300, height: 260, radius: 20 }),

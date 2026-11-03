@@ -70,7 +70,8 @@ export function ElementView({ id, elements, theme, projectRootId, interactive }:
 
     case 'text':
       style = {
-        ...style, display: 'flex', alignItems: 'center', textAlign: el.textAlign,
+        ...style, display: 'flex', alignItems: el.autoHeight ? 'flex-start' : 'center', textAlign: el.textAlign,
+        height: el.autoHeight ? 'auto' : el.height, minHeight: 0,
         justifyContent: el.textAlign === 'center' ? 'center' : el.textAlign === 'right' ? 'flex-end' : 'flex-start',
         lineHeight: 1.35, whiteSpace: 'pre-wrap',
       };
@@ -116,13 +117,20 @@ export function ElementView({ id, elements, theme, projectRootId, interactive }:
       content = <div style={{ width: `${el.value ?? 0}%`, height: '100%', background: c(el.color), borderRadius: radius }} />;
       break;
 
-    case 'spinner':
-      style = {
-        ...style, background: undefined, borderRadius: '50%',
-        border: `${Math.max(3, el.width / 8)}px solid rgba(27,34,48,.12)`,
-        borderTopColor: c(el.color), animation: 'ub-spin .8s linear infinite',
-      };
+    case 'spinner': {
+      // Sempre um círculo perfeito, mesmo se a caixa for esticada.
+      const d = Math.max(8, Math.min(el.width, el.height));
+      const sw = Math.max(2, d / 8);
+      const r = (d - sw) / 2;
+      style = { ...style, ...center, background: undefined };
+      content = (
+        <svg width={d} height={d} viewBox={`0 0 ${d} ${d}`} style={{ animation: 'ub-spin .8s linear infinite' }}>
+          <circle cx={d / 2} cy={d / 2} r={r} fill="none" stroke="rgba(27,34,48,.12)" strokeWidth={sw} />
+          <circle cx={d / 2} cy={d / 2} r={r} fill="none" stroke={c(el.color)} strokeWidth={sw} strokeLinecap="round" strokeDasharray={`${Math.PI * r * 0.5} ${Math.PI * 2 * r}`} />
+        </svg>
+      );
       break;
+    }
 
     case 'switch':
       style = { ...style, background: el.checked ? c(el.background) : '#8892A6', borderRadius: el.height / 2 };
@@ -183,7 +191,11 @@ export function ElementView({ id, elements, theme, projectRootId, interactive }:
   }
 
   return (
-    <div data-id={interactive ? id : undefined} style={style}>
+    <div
+      data-id={interactive ? id : undefined}
+      data-auto={interactive && el.type === 'text' && el.autoHeight ? '' : undefined}
+      style={style}
+    >
       {content}
       {el.children.map((child) => (
         <ElementView key={child} id={child} elements={elements} theme={theme} projectRootId={projectRootId} interactive={interactive} />

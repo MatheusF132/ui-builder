@@ -1,9 +1,9 @@
 import { useRef } from 'react';
-import { FileCode2, FileJson, FolderOpen, Maximize, Palette, Plus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { FileCode2, FileJson, FolderOpen, Keyboard, Maximize, Palette, Plus, Redo2, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEditor } from '../editor/store';
 import { download, exportHTML, exportJSON, readProjectFile } from '../editor/export';
 
-export function TopBar() {
+export function TopBar({ onHelp }: { onHelp: () => void }) {
   const project = useEditor((s) => s.project)!;
   const zoom = useEditor((s) => s.zoom);
   const canUndo = useEditor((s) => s.past.length > 0);
@@ -44,6 +44,7 @@ export function TopBar() {
         <button className="btn" onClick={() => fileInput.current?.click()}><FolderOpen size={16} /> Abrir</button>
         <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
+      <button className="icon-btn" aria-label="Atalhos de teclado" title="Atalhos de teclado (?)" onClick={onHelp}><Keyboard size={18} /></button>
       <button
         className="btn primary"
         onClick={() => {

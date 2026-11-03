@@ -26,6 +26,8 @@ export interface EditorElement {
   fontSize?: number;
   fontWeight?: number;
   textAlign?: 'left' | 'center' | 'right';
+  /** Texto: a altura acompanha o conteúdo (útil para parágrafos e títulos). */
+  autoHeight?: boolean;
   opacity?: number;
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   value?: number;

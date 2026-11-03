@@ -1,6 +1,6 @@
 # UI Builder
 
-Editor visual para projetar interfaces de **web** e **celular**, mais simples que as ferramentas de design tradicionais e pensado para qualquer nível: de quem está começando a quem trabalha com design todo dia.
+Editor visual para projetar a **interface e a experiência (UI e UX)** de **web** e **celular**, mais simples que as ferramentas de design tradicionais e pensado para qualquer nível: de quem está começando a quem trabalha com design todo dia.
 
 Ao criar o projeto você escolhe a plataforma (Web ou Celular) e o tamanho da tela. Depois é só montar a interface com a biblioteca de componentes prontos, ajustar tudo no inspetor e exportar.
 
@@ -8,13 +8,14 @@ Ao criar o projeto você escolhe a plataforma (Web ou Celular) e o tamanho da te
 
 - **Novo projeto** com escolha de plataforma e tamanhos prontos (Desktop, Notebook, Tablet, iPhone, Android)
 - **Biblioteca com 36 componentes** em 7 categorias: básicos, botões, formulários, feedback, navegação, cards e modelos completos (login, seção de abertura, perfil), com miniaturas reais e busca
-- **Canvas** com arrastar, redimensionar por 8 alças, zoom (botões ou Ctrl + roda do mouse) e ajuste à tela
+- **Canvas** com arrastar, redimensionar por 8 alças, zoom (botões ou Ctrl + roda do mouse), ajuste à tela e mover a tela com Espaço + arrastar
+- **Guias inteligentes** em vermelho: o elemento gruda e mostra as linhas quando alinha com bordas e centros do frame e dos outros elementos (Ctrl desativa)
+- **Revisão de UX** automática: contraste (WCAG AA), alvos de toque (mínimo 44×44 no celular) e tamanho mínimo de texto, por elemento e no projeto inteiro
 - **Soltar da biblioteca** direto dentro do frame desejado
 - **Camadas** em árvore, com ocultar e travar
 - **Inspetor** de propriedades: posição, tamanho, texto, cores, borda, arredondamento, opacidade e sombra
 - **Estados dos componentes** (normal, hover, desabilitado, carregando, erro) editáveis sem refazer o desenho
 - **Tema global**: escolha um tema pronto ou gere a paleta inteira a partir de uma única cor (o contraste do texto é ajustado sozinho), e troque fonte e arredondamento do projeto todo. Os componentes usam as cores do tema, então tudo muda junto
-- **Verificador de contraste** (WCAG AA) em tempo real para textos
 - **Desfazer/refazer** com histórico
 - **Salvamento automático** no navegador
 - **Exportar** para HTML e JSON, e abrir projetos `.json`
@@ -39,6 +40,9 @@ Outros comandos: `npm run build` (gera a versão de produção) e `npm run lint`
 | `Delete` | Excluir elemento |
 | Setas (`Shift` = 10 px) | Mover elemento |
 | `Esc` | Limpar seleção |
+| `Espaço` + arrastar | Mover a tela |
+| `Ctrl` ao arrastar | Desativar as guias de alinhamento |
+| `?` | Lista de atalhos |
 | `Ctrl + roda do mouse` | Zoom |
 
 ## Estrutura
@@ -57,6 +61,12 @@ React, TypeScript, Vite, Zustand e Lucide Icons.
 
 ## Roadmap
 
+O objetivo é ser também uma ferramenta de UX, não só de desenho de telas:
+
+- [ ] Várias telas no mesmo projeto, com conexões entre elas (fluxo de navegação)
+- [ ] Modo protótipo: clicar nos elementos e navegar entre as telas
+- [ ] Mapa de jornada do usuário e personas
+- [ ] Constraints: o conteúdo de um frame acompanha o redimensionamento
 - [ ] Responsividade nativa: cada componente com comportamento por tamanho de tela, sem desenhar um frame por breakpoint
 - [x] Tema global (cores, fonte e arredondamento do projeto inteiro em um clique)
 - [ ] Exportar código limpo em React e React Native

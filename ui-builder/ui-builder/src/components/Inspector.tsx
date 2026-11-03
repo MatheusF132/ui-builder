@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Copy, Trash2, TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEditor } from '../editor/store';
-import { contrastRatio, effectiveBackground, parseHex } from '../editor/contrast';
+import { parseHex } from '../editor/contrast';
+import { auditProject, checksFor } from '../editor/audit';
 import {
   FONT_LABELS, PRESET_THEMES, ROUNDNESS_LABELS, TOKEN_LABELS, deriveFromPrimary, getTheme, isToken, resolveColor,
 } from '../editor/theme';
@@ -62,28 +63,48 @@ function ColorField({ label, value, onChange }: { label: string; value?: string;
   );
 }
 
-function Contrast({ el }: { el: EditorElement }) {
+function UxChecks({ el }: { el: EditorElement }) {
   const project = useEditor((s) => s.project)!;
-  const theme = getTheme(project);
-  const r = (v?: string) => resolveColor(v, theme);
-  if (!TEXTY.includes(el.type) || el.type === 'avatar' && !el.text) return null;
-  const hasOwnBg = ['button', 'input', 'textarea', 'badge', 'avatar'].includes(el.type) && parseHex(r(el.background));
-  const bg = hasOwnBg ? r(el.background) : effectiveBackground(project.elements, el.parentId, r);
-  const fg = el.type === 'input' || el.type === 'textarea' ? (el.text ? r(el.color) : '#6B7587') : r(el.color);
-  const ratio = contrastRatio(fg, bg);
-  if (ratio === null) return null;
-  const large = (el.fontSize ?? 16) >= 24 || ((el.fontSize ?? 16) >= 18.66 && (el.fontWeight ?? 400) >= 700);
-  const min = large ? 3 : 4.5;
-  const ok = ratio >= min;
+  const checks = checksFor(project, el);
+  if (!checks.length) return null;
   return (
-    <Section title="Acessibilidade">
-      <p className={`contrast ${ok ? 'ok' : 'warn'}`} role="status">
-        {ok ? <CircleCheck size={16} /> : <TriangleAlert size={16} />}
-        <span>
-          Contraste {ratio.toFixed(1)}:1.{' '}
-          {ok ? 'Atende ao mínimo recomendado (WCAG AA).' : `Abaixo do mínimo de ${min}:1. Escureça o texto ou clareie o fundo.`}
-        </span>
-      </p>
+    <Section title="Checagens de UX">
+      {checks.map((c) => (
+        <p key={c.kind} className={`contrast ${c.ok ? 'ok' : 'warn'}`} role="status">
+          {c.ok ? <CircleCheck size={16} /> : <TriangleAlert size={16} />}
+          <span>{c.message}</span>
+        </p>
+      ))}
+    </Section>
+  );
+}
+
+function ReviewPanel() {
+  const project = useEditor((s) => s.project)!;
+  const issues = useMemo(() => auditProject(project), [project]);
+  const { select } = useEditor.getState();
+  return (
+    <Section title="Revisão de UX">
+      {issues.length === 0 ? (
+        <p className="contrast ok" role="status">
+          <CircleCheck size={16} />
+          <span>Nenhum problema de contraste, alvo de toque ou tamanho de texto.</span>
+        </p>
+      ) : (
+        <>
+          <p className="hint">{issues.length} {issues.length === 1 ? 'problema encontrado' : 'problemas encontrados'}. Clique para ir até o elemento.</p>
+          <ul className="issues">
+            {issues.slice(0, 30).map((i) => (
+              <li key={i.elementId + i.message}>
+                <button onClick={() => select(i.elementId)}>
+                  <strong>{i.name}</strong>
+                  <span>{i.message}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </Section>
   );
 }
@@ -153,6 +174,7 @@ export function Inspector() {
           </label>
           <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {root.width} × {root.height}</p>
         </Section>
+        <ReviewPanel />
         <ThemePanel />
         <p className="hint pad">Selecione um elemento no canvas ou nas camadas para editar suas propriedades.</p>
       </aside>
@@ -221,6 +243,12 @@ export function Inspector() {
             </label>
           </div>
           {el.type === 'text' && (
+            <label className="check">
+              <input type="checkbox" checked={!!el.autoHeight} onChange={(e) => set({ autoHeight: e.target.checked })} />
+              Altura automática
+            </label>
+          )}
+          {el.type === 'text' && (
             <div className="seg" role="group" aria-label="Alinhamento">
               {(['left', 'center', 'right'] as const).map((a) => (
                 <button key={a} aria-pressed={(el.textAlign ?? 'left') === a} onClick={() => set({ textAlign: a })}>
@@ -270,7 +298,7 @@ export function Inspector() {
         </label>
       </Section>
 
-      <Contrast el={el} />
+      <UxChecks el={el} />
     </aside>
   );
 }
