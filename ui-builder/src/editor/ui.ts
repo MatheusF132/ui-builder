@@ -10,6 +10,9 @@ interface UiState {
   mode: UiMode;
   /** A cor de destaque do editor acompanha a cor principal do tema do projeto. */
   followProject: boolean;
+  /** Mostra as setas de fluxo entre as telas no canvas. */
+  showFlow: boolean;
+  setShowFlow: (show: boolean) => void;
   setMode: (mode: UiMode) => void;
   setFollowProject: (follow: boolean) => void;
 }
@@ -19,6 +22,8 @@ export const useUi = create<UiState>()(
     (set) => ({
       mode: 'auto',
       followProject: true,
+      showFlow: true,
+      setShowFlow: (showFlow) => set({ showFlow }),
       setMode: (mode) => set({ mode }),
       setFollowProject: (followProject) => set({ followProject }),
     }),

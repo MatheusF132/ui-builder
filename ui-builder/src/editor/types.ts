@@ -6,6 +6,9 @@ export type ElementType =
 
 export type ElementState = 'normal' | 'hover' | 'disabled' | 'loading' | 'error';
 
+export type HConstraint = 'left' | 'right' | 'center' | 'stretch' | 'scale';
+export type VConstraint = 'top' | 'bottom' | 'center' | 'stretch' | 'scale';
+
 export interface EditorElement {
   id: string;
   type: ElementType;
@@ -35,6 +38,10 @@ export interface EditorElement {
   state?: ElementState;
   hidden?: boolean;
   locked?: boolean;
+  /** Interação: id da tela de destino ao clicar, ou "$back" para voltar. */
+  link?: string;
+  /** Como o elemento reage quando o frame que o contém muda de tamanho. Padrão: esquerda e topo. */
+  constraints?: { h: HConstraint; v: VConstraint };
 }
 
 export interface Project {
@@ -44,6 +51,8 @@ export interface Project {
   elements: Record<string, EditorElement>;
   /** Projetos da v0.1 não têm tema; use getTheme(). */
   theme?: Theme;
+  /** Telas do projeto, em ordem (cada uma é um elemento raiz). Use getScreens(). */
+  screens?: string[];
 }
 
 export type ThemeColor =

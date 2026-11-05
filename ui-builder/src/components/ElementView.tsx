@@ -13,10 +13,14 @@ interface Props {
   id: string;
   elements: Record<string, EditorElement>;
   theme: Theme;
-  /** A raiz do projeto mantém o arredondamento original (formato do aparelho). */
-  projectRootId?: string;
+  /** Telas do projeto: mantêm o arredondamento original (formato do aparelho). */
+  screens?: string[];
+  /** No canvas, a raiz fica na posição (x, y) da tela em vez de em 0, 0. */
+  rootPlaced?: boolean;
   /** No editor: adiciona data-id e cursores. Na exportação: HTML limpo. */
   interactive?: boolean;
+  /** Modo protótipo: sem edição, com cursor de clique nos elementos que têm interação. */
+  prototype?: boolean;
 }
 
 function MiniSpinner({ color }: { color?: string }) {
@@ -31,7 +35,7 @@ function MiniSpinner({ color }: { color?: string }) {
   );
 }
 
-export function ElementView({ id, elements, theme, projectRootId, interactive }: Props) {
+export function ElementView({ id, elements, theme, screens, rootPlaced, interactive, prototype }: Props) {
   const el = elements[id];
   if (!el || el.hidden) return null;
 
@@ -39,14 +43,15 @@ export function ElementView({ id, elements, theme, projectRootId, interactive }:
   const state = el.state ?? 'normal';
   const opacity = el.opacity ?? 1;
   const c = (v?: string) => resolveColor(v, theme);
-  const scalable = ['frame', 'button', 'input', 'textarea', 'badge', 'image'].includes(el.type) && id !== projectRootId;
+  const scalable = ['frame', 'button', 'input', 'textarea', 'badge', 'image'].includes(el.type) && !screens?.includes(id);
   const radius = el.radius === undefined ? undefined : scalable ? el.radius * ROUNDNESS[theme.roundness] : el.radius;
   const center: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
+  const flow = isRoot && !rootPlaced;
   let style: CSSProperties = {
-    position: isRoot ? 'relative' : 'absolute',
-    left: isRoot ? 0 : el.x,
-    top: isRoot ? 0 : el.y,
+    position: flow ? 'relative' : 'absolute',
+    left: flow ? 0 : el.x,
+    top: flow ? 0 : el.y,
     width: el.width,
     height: el.height,
     boxSizing: 'border-box',
@@ -190,15 +195,22 @@ export function ElementView({ id, elements, theme, projectRootId, interactive }:
       break;
   }
 
+  if (prototype) {
+    const clickable = !!el.link || el.type === 'switch' || el.type === 'checkbox';
+    style = { ...style, cursor: clickable ? 'pointer' : 'default' };
+  }
+
   return (
     <div
-      data-id={interactive ? id : undefined}
+      data-id={interactive || prototype ? id : undefined}
+      data-link={el.link}
+      data-hotspot={prototype && el.link ? '' : undefined}
       data-auto={interactive && el.type === 'text' && el.autoHeight ? '' : undefined}
       style={style}
     >
       {content}
       {el.children.map((child) => (
-        <ElementView key={child} id={child} elements={elements} theme={theme} projectRootId={projectRootId} interactive={interactive} />
+        <ElementView key={child} id={child} elements={elements} theme={theme} screens={screens} rootPlaced={false} interactive={interactive} prototype={prototype} />
       ))}
     </div>
   );

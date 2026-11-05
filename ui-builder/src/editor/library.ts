@@ -9,6 +9,10 @@ export interface LibItem {
 
 type O = Partial<NodeSpec>;
 
+type H = 'left' | 'right' | 'center' | 'stretch' | 'scale';
+type V = 'top' | 'bottom' | 'center' | 'stretch' | 'scale';
+const pin = (h: H, v: V = 'top'): O => ({ constraints: { h, v } });
+
 const INK = '$ink';
 const MUTED = '$muted';
 const LINE = '$line';
@@ -36,9 +40,36 @@ const avatar = (t: string, o: O = {}): NodeSpec => ({
 
 export const CATEGORIES = ['Básicos', 'Botões', 'Formulários', 'Feedback', 'Navegação', 'Cards', 'Modelos'];
 
+const STRETCHABLE = ['text', 'input', 'textarea', 'button', 'divider'];
+const kids = (n: NodeSpec, fn: (c: NodeSpec, i: number) => O | undefined): NodeSpec => ({
+  ...n, children: n.children?.map((c, i) => ({ ...c, ...(fn(c, i) ?? {}) })),
+});
+const stretchText = (c: NodeSpec): O | undefined => (c.type === 'text' ? pin('stretch') : undefined);
+
+/** Restrições de cada modelo: o conteúdo se adapta quando o frame muda de tamanho. */
+const RULES: Record<string, (n: NodeSpec) => NodeSpec> = {
+  'Modelos/Tela de login': (n) => ({ ...kids(n, (c) => (STRETCHABLE.includes(c.type) ? pin('stretch') : undefined)), ...pin('center') }),
+  'Modelos/Perfil (celular)': (n) => ({
+    ...kids(n, (c) => (c.type === 'avatar' ? pin('center') : c.type === 'switch' ? pin('right') : STRETCHABLE.includes(c.type) ? pin('stretch') : undefined)),
+    ...pin('center'),
+  }),
+  'Modelos/Seção de abertura (web)': (n) => ({ ...kids(n, (c) => (c.type === 'image' ? pin('right') : undefined)), ...pin('stretch') }),
+  'Navegação/Barra de navegação (web)': (n) => ({ ...kids(n, (c) => (c.type === 'button' ? pin('right') : undefined)), ...pin('stretch') }),
+  'Navegação/Cabeçalho (celular)': (n) => ({ ...kids(n, (_c, i) => (i === 1 ? pin('stretch') : undefined)), ...pin('stretch') }),
+  'Navegação/Barra de abas (celular)': (n) => ({ ...kids(n, () => pin('scale')), ...pin('stretch', 'bottom') }),
+  'Navegação/Abas': (n) => kids(n, () => pin('scale')),
+  'Cards/Card simples': (n) => kids(n, stretchText),
+  'Cards/Card com imagem': (n) => kids(n, (c) => (c.type === 'image' ? pin('stretch') : stretchText(c))),
+  'Cards/Item de lista': (n) => kids(n, (c) => (c.type === 'text' && c.text === '›' ? pin('right') : stretchText(c))),
+  'Feedback/Toast': (n) => ({ ...kids(n, (c) => (c.type === 'text' ? pin('stretch') : pin('right'))), ...pin('center', 'bottom') }),
+  'Feedback/Alerta de sucesso': (n) => ({ ...kids(n, stretchText), ...pin('stretch') }),
+  'Feedback/Alerta de erro': (n) => ({ ...kids(n, stretchText), ...pin('stretch') }),
+};
+
 const slug = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
 const item = (category: string, name: string, build: () => NodeSpec): LibItem => ({
-  id: `${slug(category)}:${slug(name)}`, category, name, build,
+  id: `${slug(category)}:${slug(name)}`, category, name,
+  build: () => (RULES[`${category}/${name}`] ?? ((n: NodeSpec) => n))(build()),
 });
 
 const alert = (msg: string, bg: string, border: string, fg: string, name: string) =>

@@ -1,5 +1,6 @@
 import { contrastRatio, effectiveBackground, parseHex } from './contrast';
 import { getTheme, resolveColor } from './theme';
+import { getScreens, screenOf } from './screens';
 import type { EditorElement, Project } from './types';
 
 export interface Check { kind: 'contrast' | 'touch' | 'size'; ok: boolean; message: string }
@@ -49,8 +50,36 @@ export function checksFor(project: Project, el: EditorElement): Check[] {
   return checks;
 }
 
-export function auditProject(project: Project): Issue[] {
+/** Problemas no fluxo entre telas (só avalia quando o projeto já tem alguma interação). */
+function flowIssues(project: Project): Issue[] {
+  const screens = getScreens(project);
+  const els = project.elements;
+  const linked = Object.values(els).filter((e) => e.link && !e.hidden);
+  if (screens.length < 2 || !linked.length) return [];
   const issues: Issue[] = [];
+  const incoming = new Set<string>();
+  const outgoing = new Set<string>();
+  for (const el of linked) {
+    const from = screenOf(els, el.id);
+    if (!from) continue;
+    if (el.link === '$back') { outgoing.add(from); continue; }
+    if (!els[el.link!]) {
+      issues.push({ elementId: el.id, name: el.name, message: 'A interação leva a uma tela que não existe mais.' });
+      continue;
+    }
+    outgoing.add(from);
+    incoming.add(el.link!);
+  }
+  screens.forEach((id, i) => {
+    const name = els[id].name;
+    if (i > 0 && !incoming.has(id)) issues.push({ elementId: id, name, message: 'Nenhum elemento leva a esta tela, então ela não pode ser alcançada no protótipo.' });
+    if (!outgoing.has(id)) issues.push({ elementId: id, name, message: 'Beco sem saída: nenhum elemento desta tela leva a outra tela.' });
+  });
+  return issues;
+}
+
+export function auditProject(project: Project): Issue[] {
+  const issues: Issue[] = flowIssues(project);
   for (const el of Object.values(project.elements)) {
     if (el.hidden) continue;
     for (const c of checksFor(project, el)) if (!c.ok) issues.push({ elementId: el.id, name: el.name, message: c.message });

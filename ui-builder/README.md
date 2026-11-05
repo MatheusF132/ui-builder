@@ -6,6 +6,10 @@ Ao criar o projeto você escolhe a plataforma (Web ou Celular) e o tamanho da te
 
 ## O que já funciona
 
+- **Várias telas** no mesmo projeto: adicione, duplique, exclua e arraste as telas no canvas (com guias de alinhamento entre elas)
+- **Restrições (constraints)**: cada elemento define como reage quando o frame muda de tamanho (esquerda, direita, centro, esticar, proporcional). Os modelos já vêm configurados, e dá pra trocar o tamanho da tela ou criar uma versão em outro dispositivo e o conteúdo se adapta
+- **Fluxo e protótipo**: defina "ao clicar, ir para tal tela" em qualquer elemento, veja as setas de fluxo no canvas e teste tudo no modo protótipo (com interruptores e checkboxes funcionando). Dá pra exportar o protótipo navegável em um único HTML
+- **Tema do editor**: claro, escuro ou automático, com a cor de destaque acompanhando o tema do projeto
 - **Novo projeto** com escolha de plataforma e tamanhos prontos (Desktop, Notebook, Tablet, iPhone, Android)
 - **Biblioteca com 36 componentes** em 7 categorias: básicos, botões, formulários, feedback, navegação, cards e modelos completos (login, seção de abertura, perfil), com miniaturas reais e busca
 - **Canvas** com arrastar, redimensionar por 8 alças, zoom (botões ou Ctrl + roda do mouse), ajuste à tela e mover a tela com Espaço + arrastar
@@ -63,10 +67,11 @@ React, TypeScript, Vite, Zustand e Lucide Icons.
 
 O objetivo é ser também uma ferramenta de UX, não só de desenho de telas:
 
-- [ ] Várias telas no mesmo projeto, com conexões entre elas (fluxo de navegação)
-- [ ] Modo protótipo: clicar nos elementos e navegar entre as telas
+- [x] Várias telas no mesmo projeto
+- [x] Conexões entre as telas (fluxo de navegação)
+- [x] Modo protótipo: clicar nos elementos e navegar entre as telas
 - [ ] Mapa de jornada do usuário e personas
-- [ ] Constraints: o conteúdo de um frame acompanha o redimensionamento
+- [x] Constraints: o conteúdo de um frame acompanha o redimensionamento
 - [ ] Responsividade nativa: cada componente com comportamento por tamanho de tela, sem desenhar um frame por breakpoint
 - [x] Tema global (cores, fonte e arredondamento do projeto inteiro em um clique)
 - [ ] Exportar código limpo em React e React Native

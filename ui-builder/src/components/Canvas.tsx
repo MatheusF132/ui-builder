@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type DragEvent, type PointerEvent as React
 import { useEditor } from '../editor/store';
 import { absolutePos, type Elements } from '../editor/tree';
 import { LIBRARY } from '../editor/library';
+import { getScreens, screenOf } from '../editor/screens';
+import { useUi } from '../editor/ui';
+import type { Project } from '../editor/types';
 import { getTheme } from '../editor/theme';
 import { ElementView } from './ElementView';
 
@@ -23,6 +26,7 @@ interface Drag {
   ox: number; oy: number; ow: number; oh: number;
   origin: { x: number; y: number };
   cands: Rect[];
+  root: boolean;
   moved: boolean;
 }
 
@@ -32,9 +36,13 @@ const typing = (t: EventTarget | null) => ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTO
 const xs = (r: Rect) => [r.x, r.x + r.w / 2, r.x + r.w];
 const ys = (r: Rect) => [r.y, r.y + r.h / 2, r.y + r.h];
 
-/** Com o que o elemento pode se alinhar: o pai (bordas e centro) e os irmãos. */
-function candidates(elements: Elements, id: string): Rect[] {
-  const parent = elements[elements[id].parentId!];
+/** Com o que o elemento pode se alinhar: o pai e os irmãos (para uma tela, as outras telas). */
+function candidates(elements: Elements, id: string, screens: string[]): Rect[] {
+  const el = elements[id];
+  if (el.parentId === null) {
+    return screens.filter((sid) => sid !== id).map((sid) => ({ x: elements[sid].x, y: elements[sid].y, w: elements[sid].width, h: elements[sid].height }));
+  }
+  const parent = elements[el.parentId];
   const list: Rect[] = [{ x: 0, y: 0, w: parent.width, h: parent.height }];
   for (const sid of parent.children) {
     const s = elements[sid];
@@ -78,6 +86,26 @@ function computeGuides(f: Rect, cands: Rect[], o: { x: number; y: number }): Gui
   return [...out.values()];
 }
 
+/** Setas do elemento com interação até a tela de destino. */
+function flowPaths(project: Project) {
+  const els = project.elements;
+  const out: { id: string; d: string; sx: number; sy: number }[] = [];
+  for (const el of Object.values(els)) {
+    if (!el.link || el.link === '$back' || el.hidden || el.parentId === null) continue;
+    const target = els[el.link];
+    if (!target || screenOf(els, el.id) === target.id) continue;
+    const a = absolutePos(els, el.id);
+    const toRight = target.x + target.width / 2 >= a.x + el.width / 2;
+    const sx = toRight ? a.x + el.width : a.x;
+    const sy = a.y + el.height / 2;
+    const tx = toRight ? target.x : target.x + target.width;
+    const ty = Math.min(Math.max(sy, target.y + 24), target.y + target.height - 24);
+    const k = Math.max(60, Math.abs(tx - sx) / 2) * (toRight ? 1 : -1);
+    out.push({ id: el.id, d: `M ${sx} ${sy} C ${sx + k} ${sy}, ${tx - k} ${ty}, ${tx} ${ty}`, sx, sy });
+  }
+  return out;
+}
+
 export function Canvas() {
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
@@ -89,11 +117,16 @@ export function Canvas() {
   const drag = useRef<Drag | null>(null);
   const space = useRef(false);
   const pan = useRef<{ sx: number; sy: number; sl: number; st: number } | null>(null);
+  const showFlow = useUi((s) => s.showFlow);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [panMode, setPanMode] = useState(false);
 
-  const root = project.elements[project.rootId];
+  const screens = getScreens(project);
+  const world = {
+    w: Math.max(...screens.map((id) => project.elements[id].x + project.elements[id].width)),
+    h: Math.max(...screens.map((id) => project.elements[id].y + project.elements[id].height)),
+  };
   const sel = selectedId ? project.elements[selectedId] : null;
   const hover = hoverId && hoverId !== selectedId ? project.elements[hoverId] : null;
   const theme = getTheme(project);
@@ -103,8 +136,10 @@ export function Canvas() {
     const v = viewport.current;
     const p = useEditor.getState().project;
     if (!v || !p) return;
-    const r = p.elements[p.rootId];
-    const z = Math.min(1, (v.clientWidth - 160) / r.width, (v.clientHeight - 160) / r.height);
+    const ids = getScreens(p);
+    const w = Math.max(...ids.map((id) => p.elements[id].x + p.elements[id].width));
+    const h = Math.max(...ids.map((id) => p.elements[id].y + p.elements[id].height));
+    const z = Math.min(1, (v.clientWidth - 160) / w, (v.clientHeight - 160) / h);
     useEditor.getState().setZoom(Math.round(z * 100) / 100);
   }, [fitTick]);
 
@@ -204,6 +239,7 @@ export function Canvas() {
         if (h < MIN) { if (hd.includes('n')) y -= MIN - h; h = MIN; }
       }
       const r = { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+      if (d.root) { r.x = Math.max(0, r.x); r.y = Math.max(0, r.y); }
       const patch: Record<string, unknown> = { x: r.x, y: r.y };
       if (d.mode === 'resize') {
         patch.width = r.w;
@@ -240,11 +276,18 @@ export function Canvas() {
     const els = project.elements;
     const start = (id: string, mode: Drag['mode'], handle?: string) => {
       const el = els[id];
+      const root = el.parentId === null;
       drag.current = {
         mode, id, handle, sx: e.clientX, sy: e.clientY, ox: el.x, oy: el.y, ow: el.width, oh: el.height,
-        origin: absolutePos(els, el.parentId!), cands: candidates(els, id), moved: false,
+        origin: root ? { x: 0, y: 0 } : absolutePos(els, el.parentId!), cands: candidates(els, id, screens), root, moved: false,
       };
     };
+    const screenId = (e.target as HTMLElement).closest<HTMLElement>('[data-screen]')?.dataset.screen;
+    if (screenId) {
+      select(screenId);
+      start(screenId, 'move');
+      return;
+    }
     setHoverId(null);
     const handle = (e.target as HTMLElement).dataset.handle;
     if (handle && sel && sel.parentId) {
@@ -253,7 +296,7 @@ export function Canvas() {
     }
     const id = idFrom(e.target);
     select(id);
-    if (!id || id === project.rootId || els[id].locked) return;
+    if (!id || els[id].parentId === null || els[id].locked) return;
     start(id, 'move');
   }
 
@@ -293,21 +336,51 @@ export function Canvas() {
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
-      <div className="stage-wrap" style={{ width: root.width * zoom, height: root.height * zoom }}>
-        <div className="stage-label">{project.name} · {root.width} × {root.height}</div>
+      <div className="stage-wrap" style={{ width: world.w * zoom, height: world.h * zoom }}>
         <div
           ref={stage}
           className="stage"
-          style={{ width: root.width, height: root.height, transform: `scale(${zoom})` }}
+          style={{ width: world.w, height: world.h, transform: `scale(${zoom})` }}
           onPointerDown={onStageDown}
           onPointerMove={(e) => {
             if (drag.current || pan.current) return;
             const id = idFrom(e.target);
-            setHoverId(id && id !== project.rootId ? id : null);
+            setHoverId(id && project.elements[id]?.parentId !== null ? id : null);
           }}
           onPointerLeave={() => setHoverId(null)}
         >
-          <ElementView id={project.rootId} elements={project.elements} theme={theme} projectRootId={project.rootId} interactive />
+          {screens.map((id) => {
+            const r = project.elements[id];
+            return (
+              <div key={id}>
+                <div
+                  className={`stage-label${selectedId === id ? ' is-selected' : ''}`}
+                  data-screen={id}
+                  title="Arraste para mover a tela"
+                  style={{ left: r.x, top: r.y, transform: `translateY(-100%) scale(${inv})`, transformOrigin: 'left bottom' }}
+                >
+                  {r.name} · {r.width} × {r.height}
+                </div>
+                <ElementView id={id} elements={project.elements} theme={theme} screens={screens} rootPlaced interactive />
+              </div>
+            );
+          })}
+
+          {showFlow && (
+            <svg className="flow" width={world.w} height={world.h}>
+              <defs>
+                <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" fill="var(--select)" />
+                </marker>
+              </defs>
+              {flowPaths(project).map((f) => (
+                <g key={f.id}>
+                  <path d={f.d} fill="none" stroke="var(--select)" strokeWidth={2 * inv} markerEnd="url(#flow-arrow)" />
+                  <circle cx={f.sx} cy={f.sy} r={4 * inv} fill="var(--select)" />
+                </g>
+              ))}
+            </svg>
+          )}
 
           {hover && !hover.hidden && (
             <div className="hover-box" style={{ left: box(hover.id).x, top: box(hover.id).y, width: hover.width, height: hover.height, outlineWidth: inv }} />
@@ -315,7 +388,7 @@ export function Canvas() {
 
           {sel && !sel.hidden && (
             <div className="selection" style={{ left: box(sel.id).x, top: box(sel.id).y, width: sel.width, height: sel.height, outlineWidth: 1.5 * inv }}>
-              {sel.id !== project.rootId && !sel.locked &&
+              {sel.parentId !== null && !sel.locked &&
                 Object.entries(HANDLES).map(([h, [px, py, cursor]]) => (
                   <i key={h} data-handle={h} className="handle" style={{ left: `${px}%`, top: `${py}%`, cursor, transform: `translate(-50%,-50%) scale(${inv})` }} />
                 ))}

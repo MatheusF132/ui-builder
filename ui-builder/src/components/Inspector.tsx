@@ -1,12 +1,15 @@
 import { useMemo, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Copy, Trash2, TriangleAlert, CircleCheck } from 'lucide-react';
 import { useEditor } from '../editor/store';
+import { getScreens, screenOf } from '../editor/screens';
+import { useUi, type UiMode } from '../editor/ui';
 import { parseHex } from '../editor/contrast';
 import { auditProject, checksFor } from '../editor/audit';
 import {
   FONT_LABELS, PRESET_THEMES, ROUNDNESS_LABELS, TOKEN_LABELS, deriveFromPrimary, getTheme, isToken, resolveColor,
 } from '../editor/theme';
-import type { EditorElement, ElementState, Theme, ThemeColor } from '../editor/types';
+import { PRESETS } from '../editor/presets';
+import type { EditorElement, ElementState, HConstraint, Theme, ThemeColor, VConstraint } from '../editor/types';
 
 const TEXTY = ['text', 'button', 'input', 'textarea', 'badge', 'avatar', 'checkbox'];
 const STATES: [ElementState, string][] = [
@@ -157,14 +160,35 @@ function ThemePanel() {
   );
 }
 
+const MODES: [UiMode, string][] = [['light', 'Claro'], ['dark', 'Escuro'], ['auto', 'Automático']];
+
+function EditorAppearance() {
+  const mode = useUi((s) => s.mode);
+  const follow = useUi((s) => s.followProject);
+  const { setMode, setFollowProject } = useUi.getState();
+  return (
+    <Section title="Aparência do editor">
+      <div className="seg" role="group" aria-label="Tema do editor">
+        {MODES.map(([value, label]) => (
+          <button key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{label}</button>
+        ))}
+      </div>
+      <label className="check">
+        <input type="checkbox" checked={follow} onChange={(e) => setFollowProject(e.target.checked)} />
+        Destaque do editor acompanha o tema do projeto
+      </label>
+    </Section>
+  );
+}
+
 export function Inspector() {
   const project = useEditor((s) => s.project)!;
   const selectedId = useEditor((s) => s.selectedId);
   const { update, remove, duplicate, reorder, setProjectName } = useEditor.getState();
+  const presets = PRESETS[project.target];
   const el = selectedId ? project.elements[selectedId] : null;
 
   if (!el) {
-    const root = project.elements[project.rootId];
     return (
       <aside className="inspector" aria-label="Propriedades">
         <Section title="Projeto">
@@ -172,10 +196,11 @@ export function Inspector() {
             <span>Nome</span>
             <input type="text" value={project.name} onChange={(e) => setProjectName(e.target.value)} />
           </label>
-          <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {root.width} × {root.height}</p>
+          <p className="hint">{project.target === 'web' ? 'Web' : 'Celular'} · {getScreens(project).length} {getScreens(project).length === 1 ? 'tela' : 'telas'}</p>
         </Section>
         <ReviewPanel />
         <ThemePanel />
+        <EditorAppearance />
         <p className="hint pad">Selecione um elemento no canvas ou nas camadas para editar suas propriedades.</p>
       </aside>
     );
@@ -192,6 +217,17 @@ export function Inspector() {
     <aside className="inspector" aria-label="Propriedades">
       <div className="insp-head">
         <input className="name-input" aria-label="Nome da camada" value={el.name} onChange={(e) => set({ name: e.target.value })} />
+        {isRoot && (
+          <div className="insp-actions">
+            <button className="icon-btn" aria-label="Duplicar tela" title="Duplicar tela (Ctrl+D)" onClick={() => duplicate(el.id)}><Copy size={16} /></button>
+            {getScreens(project).length > 1 && (
+              <button
+                className="icon-btn danger" aria-label="Excluir tela" title="Excluir tela"
+                onClick={() => { if (!el.children.length || confirm('Excluir esta tela e tudo que está nela?')) remove(el.id); }}
+              ><Trash2 size={16} /></button>
+            )}
+          </div>
+        )}
         {!isRoot && (
           <div className="insp-actions">
             <button className="icon-btn" aria-label="Trazer para frente" title="Trazer para frente" onClick={() => reorder(el.id, 1)}><ArrowUp size={16} /></button>
@@ -204,12 +240,66 @@ export function Inspector() {
 
       <Section title="Posição e tamanho">
         <div className="grid2">
-          {!isRoot && <Num label="X" value={el.x} onChange={(x) => set({ x })} />}
-          {!isRoot && <Num label="Y" value={el.y} onChange={(y) => set({ y })} />}
+          <Num label="X" value={el.x} onChange={(x) => set({ x })} />
+          <Num label="Y" value={el.y} onChange={(y) => set({ y })} />
           <Num label="Largura" value={el.width} min={1} onChange={(width) => set({ width })} />
           <Num label="Altura" value={el.height} min={1} onChange={(height) => set({ height })} />
         </div>
       </Section>
+
+      {isRoot && (
+        <Section title="Tamanho da tela">
+          <label className="field">
+            <span>Dispositivo</span>
+            <select
+              value={presets.findIndex((p) => p.width === el.width && p.height === el.height)}
+              onChange={(e) => { const p = presets[Number(e.target.value)]; if (p) set({ width: p.width, height: p.height }); }}
+            >
+              {presets.map((p, i) => <option key={p.label} value={i}>{p.label} · {p.width} × {p.height}</option>)}
+              <option value={-1} disabled>Personalizado</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Criar uma versão em outro tamanho</span>
+            <select
+              value=""
+              onChange={(e) => {
+                const p = presets[Number(e.target.value)];
+                if (!p) return;
+                duplicate(el.id);
+                const copy = useEditor.getState().selectedId;
+                if (copy) update(copy, { width: p.width, height: p.height, name: `${el.name} · ${p.label}` });
+              }}
+            >
+              <option value="">Escolher o tamanho…</option>
+              {presets.map((p, i) => <option key={p.label} value={i}>{p.label} · {p.width} × {p.height}</option>)}
+            </select>
+          </label>
+          <p className="hint">O conteúdo se adapta conforme as restrições de cada elemento.</p>
+        </Section>
+      )}
+
+      {!isRoot && (
+        <Section title="Restrições">
+          <div className="grid2">
+            <label className="field">
+              <span>Horizontal</span>
+              <select value={el.constraints?.h ?? 'left'} onChange={(e) => set({ constraints: { h: e.target.value as HConstraint, v: el.constraints?.v ?? 'top' } })}>
+                <option value="left">Esquerda</option><option value="right">Direita</option><option value="center">Centro</option>
+                <option value="stretch">Esquerda e direita</option><option value="scale">Proporcional</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Vertical</span>
+              <select value={el.constraints?.v ?? 'top'} onChange={(e) => set({ constraints: { h: el.constraints?.h ?? 'left', v: e.target.value as VConstraint } })}>
+                <option value="top">Topo</option><option value="bottom">Base</option><option value="center">Centro</option>
+                <option value="stretch">Topo e base</option><option value="scale">Proporcional</option>
+              </select>
+            </label>
+          </div>
+          <p className="hint">Como este elemento reage quando o frame que o contém muda de tamanho.</p>
+        </Section>
+      )}
 
       {stateful && (
         <Section title="Estado">
@@ -275,6 +365,22 @@ export function Inspector() {
             <input type="checkbox" checked={!!el.checked} onChange={(e) => set({ checked: e.target.checked })} />
             Marcado
           </label>
+        </Section>
+      )}
+
+      {!isRoot && getScreens(project).length > 1 && (
+        <Section title="Interação">
+          <label className="field">
+            <span>Ao clicar</span>
+            <select value={el.link ?? ''} onChange={(e) => set({ link: e.target.value || undefined })}>
+              <option value="">Nada</option>
+              {getScreens(project)
+                .filter((id) => id !== screenOf(project.elements, el.id))
+                .map((id) => <option key={id} value={id}>Ir para: {project.elements[id].name}</option>)}
+              <option value="$back">Voltar</option>
+            </select>
+          </label>
+          <p className="hint">Teste no botão Protótipo da barra superior.</p>
         </Section>
       )}
 
